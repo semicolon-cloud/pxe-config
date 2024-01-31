@@ -1,0 +1,171 @@
+#cloud-config
+autoinstall:
+    version: 1
+    reporting:
+        hook:
+            type: webhook
+            endpoint: http://10.5.0.1:9000/hook
+    early-commands:
+        - ping -c1 10.5.0.1
+        - curl 10.5.0.1:9000/allocIp --fail-with-body -i
+        - sDevice=`ls /sys/class/net/ | grep -v "lo" | head -1`; sed -i "s/#MAC/$(cat /sys/class/net/$sDevice/address | sed -e "s/://g")/g" /autoinstall.yaml
+        - sed -i "s/#SUBIP/$(curl 10.5.0.1:9000/allocIp --fail-with-body -s)/g" /autoinstall.yaml
+        - sed -i "s/#UNAME/$(uname -r)/g" /autoinstall.yaml
+        - sDevice=`ls /sys/class/net/ | grep -v "lo" | head -1`; sed -i "s/DEVICE#/$sDevice/g" /autoinstall.yaml
+        - hostnamectl set-hostname installation
+    locale: en_US
+    network:
+        network:
+            version: 2
+            ethernets:
+                DEVICE#:
+                    dhcp4: true
+            vlans:
+                vlan10:
+                    id: 10
+                    link: DEVICE#
+                vlan30:
+                    id: 30
+                    link: DEVICE#
+                vlan20:
+                    id: 20
+                    link: DEVICE#
+            bridges:
+                br-mgmt:
+                    interfaces:
+                    - vlan10
+                    addresses: [172.29.236.#SUBIP/22]
+                br-vxlan:
+                    interfaces:
+                    - vlan30
+                    addresses: [172.29.240.#SUBIP/22]
+                br-storage:
+                    interfaces:
+                    - vlan20
+                    addresses: [172.29.244.#SUBIP/22]
+    storage:
+        grub:
+            reorder-uefi: false
+        config:
+        # disk
+        -   type: disk
+            id: disk0
+            path: /dev/sda
+            preserve: false
+            grub_device: true
+            wipe: superblock-recursive
+            ptable: gpt
+        # partition
+        -   type: partition
+            id: disk0-part0
+            device: disk0
+            preserve: false
+            flag: bios_grub
+            size: 100MB
+        -   type: partition
+            id: disk0-part1
+            preserve: false
+            device: disk0
+            size: 100G
+        -   type: partition
+            id: disk0-part2
+            size: 150G
+            preserve: false
+            device: disk0
+        -   type: partition
+            preserve: false
+            id: disk0-part3
+            size: -1
+            device: disk0
+        # volume group
+        -   type: lvm_volgroup
+            id: vg0
+            name: vg0
+            preserve: false
+            devices:
+            -   disk0-part1
+        -   type: lvm_volgroup
+            id: vg2
+            preserve: false
+            name: cinder-volumes
+            devices:
+            -   disk0-part3
+        -   type: lvm_volgroup
+            id: vg1
+            name: lxc
+            preserve: false
+            devices:
+            -   disk0-part2
+        # lvm partition
+        -   type: lvm_partition
+            id: lvm_part0
+            name: root-parition
+            preserve: false
+            volgroup: vg0
+            size: 100%
+        # formatting
+        # -   type: format
+        #     fstype: fat32
+        #     volume: disk0-part0
+        #     id: disk0-part0-fs
+        -   type: format
+            id: lvm_part0-fs
+            fstype: ext4
+            label: root
+            volume: lvm_part0
+        # mount
+        -   id: lvm_part0-fs-mount0
+            type: mount
+            path: /
+            device: lvm_part0-fs
+        # -   id: disk0-part0-fs-mount0
+        #     type: mount
+        #     path: /boot/efi
+        #     device: disk0-part0-fs
+    ssh:
+        install-server: yes
+        allow-pw: false
+    packages:
+        - bridge-utils
+        - debootstrap
+        - openssh-server
+        - tcpdump
+        - vlan
+        - python3
+        - linux-modules-extra-#UNAME
+    user-data:
+        disable_root: false
+        hostname: inst-#MAC
+        users:
+        -   name: worker
+            passwd: $1$2YJDidZr$2VaE6y8XZLlqRIxwX2wmy0
+            ssh_authorized_keys:
+            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDGfsa4kA3noSCcDzNwMrKePr37RmUilec58G8lLaVmE+NkpqddelpOMzFxxI25MwNMX6bTrEfex5/kJsYdhlIMIyf2K34qNoS4BGSAxZVSFK89x7m3QK4tYBV+w3StPeEU6fp2JKydyoGtzGGsicdngIk4NcwwjhUGUshxL9NP3PcuH8qXagyfpC65iNmRyXgYFzi+bQ7lOnaMHoEuOET7n7V4hG4MhYY61TwLC5CON+tCEWWacIE40sa/UuhnLShaelVRDvw6bqvB53dJdeUMG2d/QIHHkedQFdFdHlkQvKpyDlTOn4mep7Sm3d7SHa90cKlpeoN24vAyMIzK9g23wchm5/1Cztbwo/VCRygaVRl1HE6sMp6v9sClFFOZMyymOLryS848qJ0ODSOM4wm3QlB5qja0u3Lc5sXCNv/v7vMLr9J6nlSRR68Hm55KOfgT7AQfFfm5oj/cEzDsPYNSUDeAvOgDAgQvCru8Ojc329cx4VWHLU+ZNLOx3PyI6c0= semicolon@semicolon-master.semicolon.local
+            shell: /bin/bash
+            lock_passwd: false
+            groups: [adm, sudo]
+            sudo: ALL=(ALL) ALL
+        -   name: root
+            lock_passwd: true
+            ssh_authorized_keys:
+            - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCYEjffTWW/EGeq1MXAY6DdovizFD7lGlaUIZtgIYG9mytj/OwVx3bGF7lej04s6wOvfV35HYuQ+2yQ5V2lq1e+lb0juVHH4NRRx/LeIuaJ57p34dPryuwlBRTjC9qtoIzYjJmStDAND3AjTodPBuqJLh1HJwEqbNMHRUB22ybzvQ5oQ91fsE3uAfcbL1u+N3eH1cEfP4f4jfv8arJ8lDJpWq4ksB03/lWVKah+HrW3eJ28OtuPHoTj6b7Lj2Ewk65WnbgzyXG6H0DvADtnvpS7BAdOePqPtZIJSYNgCDvvJnqmdfrHM6BIvlJ0MtKgYraen4yF9uKTwlQbSs7MoZTujYVJgkFg4FWbFpMT0YZsAXaiSM2or2RWEAlCDCRRSrQdmW9znvohBlSc8rDQ0bw6t+D5/aJJtFmBughD7g0QYpgbM2frjXHB5dkcNKfmdUySUE4V2jXldwtPgqoQRz4A5cl8DO8AsVSvEPQ1Pt6SASmSshA/dho7xZzOuNNVVik= root@semicolon-master.semicolon.local
+            shell: /bin/bash
+            groups: [adm, sudo]
+            sudo: ALL=(ALL) ALL
+    late-commands:
+        - sed -ie 's/GRUB_TIMEOUT=.\*/GRUB_TIMEOUT=30/' /target/etc/default/grub
+    error-commands:
+        - tar c /var/log/installer | nc 10.5.0.1 1000
+        # Clear grub mbr
+        - dd if=/dev/zero of=/dev/sda bs=512 count=1
+        - vgremove -y cinder-volumes
+        - vgremove -y lxc
+        - vgremove -y vg0
+# set password to r00tme
+chpasswd:
+    expire: false
+    list:
+        - installer:$1$2YJDidZr$2VaE6y8XZLlqRIxwX2wmy0
+ssh_authorized_keys:
+    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDGfsa4kA3noSCcDzNwMrKePr37RmUilec58G8lLaVmE+NkpqddelpOMzFxxI25MwNMX6bTrEfex5/kJsYdhlIMIyf2K34qNoS4BGSAxZVSFK89x7m3QK4tYBV+w3StPeEU6fp2JKydyoGtzGGsicdngIk4NcwwjhUGUshxL9NP3PcuH8qXagyfpC65iNmRyXgYFzi+bQ7lOnaMHoEuOET7n7V4hG4MhYY61TwLC5CON+tCEWWacIE40sa/UuhnLShaelVRDvw6bqvB53dJdeUMG2d/QIHHkedQFdFdHlkQvKpyDlTOn4mep7Sm3d7SHa90cKlpeoN24vAyMIzK9g23wchm5/1Cztbwo/VCRygaVRl1HE6sMp6v9sClFFOZMyymOLryS848qJ0ODSOM4wm3QlB5qja0u3Lc5sXCNv/v7vMLr9J6nlSRR68Hm55KOfgT7AQfFfm5oj/cEzDsPYNSUDeAvOgDAgQvCru8Ojc329cx4VWHLU+ZNLOx3PyI6c0= semicolon@semicolon-master.semicolon.local
+        
