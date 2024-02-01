@@ -30,6 +30,12 @@ autoinstall:
                 vlan20:
                     id: 20
                     link: DEVICE#
+                vlan100:
+                    id: 100
+                    link: eno1
+                vlan110:
+                    id: 110
+                    link: eno1
             bridges:
                 br-mgmt:
                     interfaces:
@@ -43,85 +49,83 @@ autoinstall:
                     interfaces:
                     - vlan20
                     addresses: [172.29.244.#SUBIP/22]
+                br-vlan:
+                    interfaces:
+                    - vlan110
+                br-vlan2:
+                    interfaces:
+                    - vlan100
     storage:
         grub:
             reorder-uefi: false
         config:
         # disk
         -   type: disk
-            id: disk0
+            id: disk-hdd
             path: /dev/sda
+            preserve: false
+            grub_device: false
+            wipe: superblock-recursive
+            ptable: gpt
+        -   type: disk
+            id: disk-ssd-1
+            path: /dev/sdb
             preserve: false
             grub_device: true
             wipe: superblock-recursive
             ptable: gpt
+        -   type: disk
+            id: disk-ssd-2
+            path: /dev/sda
+            preserve: false
+            grub_device: false
+            wipe: superblock-recursive
+            ptable: gpt
         # partition
         -   type: partition
-            id: disk0-part0
-            device: disk0
+            id: disk-ssd-1-part0
+            device: disk-ssd-1
             preserve: false
             flag: bios_grub
             size: 100MB
         -   type: partition
-            id: disk0-part1
+            id: disk-ssd-1-part1
             preserve: false
-            device: disk0
-            size: 100G
-        -   type: partition
-            id: disk0-part2
-            size: 150G
-            preserve: false
-            device: disk0
-        -   type: partition
-            preserve: false
-            id: disk0-part3
+            device: disk-ssd-1
             size: -1
-            device: disk0
+        -   type: partition
+            id: disk-hdd-part0
+            size: -1
+            preserve: false
+            device: disk-hdd
+        -   type: partition
+            preserve: false
+            id: disk-ssd-2-part0
+            size: -1
+            device: disk-ssd-2
         # volume group
         -   type: lvm_volgroup
-            id: vg0
-            name: vg0
+            id: vg1
+            name: cinder-volumes
             preserve: false
             devices:
-            -   disk0-part1
+            -  disk-hdd-part0
         -   type: lvm_volgroup
             id: vg2
             preserve: false
-            name: cinder-volumes
+            name: ssd-lvm
             devices:
-            -   disk0-part3
-        -   type: lvm_volgroup
-            id: vg1
-            name: lxc
-            preserve: false
-            devices:
-            -   disk0-part2
-        # lvm partition
-        -   type: lvm_partition
-            id: lvm_part0
-            name: root-parition
-            preserve: false
-            volgroup: vg0
-            size: 100%
-        # formatting
-        # -   type: format
-        #     fstype: fat32
-        #     volume: disk0-part0
-        #     id: disk0-part0-fs
+            -   disk-ssd-2-part0
+        # format and mount
         -   type: format
-            id: lvm_part0-fs
+            id: disk-ssd-1-part1-fs
             fstype: ext4
             label: root
-            volume: lvm_part0
-        # mount
+            volume: disk-ssd-1-part1
         -   id: lvm_part0-fs-mount0
             type: mount
             path: /
-            device: lvm_part0-fs
-        # -   id: disk0-part0-fs-mount0
-        #     type: mount
-        #     path: /boot/efi
-        #     device: disk0-part0-fs
+            device:  disk-ssd-1-part1-fs
     ssh:
         install-server: yes
         allow-pw: false

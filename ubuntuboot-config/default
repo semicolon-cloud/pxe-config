@@ -2,4 +2,4 @@ DEFAULT install
 LABEL install
   KERNEL vmlinuz
   INITRD initrd
-  APPEND root=/dev/ram0 ramdisk_size=1500000 ip=dhcp url=http://10.5.0.1/ubuntu-server/ubuntu-22.04.3-live-server-amd64.iso autoinstall ds=nocloud-net;s=http://10.5.0.1/cloud-init/ cloud-config-url=/dev/null
+  APPEND root=/dev/ram0 ramdisk_size=1500000 ip=dhcp url=http://10.5.0.1/ubuntu-server/ubuntu-22.04.3-live-server-amd64.iso autoinstall ds=nocloud-net;s=http://10.5.0.1/cloud-init-config/default/ cloud-config-url=/dev/null
