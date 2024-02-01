@@ -32,10 +32,10 @@ autoinstall:
                     link: DEVICE#
                 vlan100:
                     id: 100
-                    link: eno1
+                    link: DEVICE#
                 vlan110:
                     id: 110
-                    link: eno1
+                    link: DEVICE#
             bridges:
                 br-mgmt:
                     interfaces:
