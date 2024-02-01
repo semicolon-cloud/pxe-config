@@ -20,6 +20,7 @@ autoinstall:
             ethernets:
                 DEVICE#:
                     dhcp4: true
+                    wakeonlan: true
             vlans:
                 vlan10:
                     id: 10
