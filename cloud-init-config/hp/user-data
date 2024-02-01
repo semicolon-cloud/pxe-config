@@ -162,9 +162,12 @@ autoinstall:
         - tar c /var/log/installer | nc 10.5.0.1 1000
         # Clear grub mbr
         - dd if=/dev/zero of=/dev/sda bs=512 count=1
+        # - vgremove -y cinder-volumes
         - vgremove -y cinder-volumes
-        - vgremove -y lxc
-        - vgremove -y vg0
+        - vgremove -y ssd-lvm
+        - wipefs -a /dev/sda
+        - wipefs -a /dev/sdb
+        - wipefs -a /dev/sdc 
 # set password to r00tme
 chpasswd:
     expire: false
