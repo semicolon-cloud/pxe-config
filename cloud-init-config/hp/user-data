@@ -76,7 +76,7 @@ autoinstall:
             ptable: gpt
         -   type: disk
             id: disk-ssd-2
-            path: /dev/sda
+            path: /dev/sdc
             preserve: false
             grub_device: false
             wipe: superblock-recursive
