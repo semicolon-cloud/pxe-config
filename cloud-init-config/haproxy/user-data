@@ -37,6 +37,10 @@ autoinstall:
                 vlan110:
                     id: 110
                     link: DEVICE#
+                vlan120:
+                    id: 120
+                    link: DEVICE#
+                    addresses: [10.244.104.60/24]
             bridges:
                 br-mgmt:
                     interfaces:
@@ -94,6 +98,16 @@ autoinstall:
             preserve: false
             device: disk-ssd-1
             size: -1
+        -   type: partition
+            id: disk-hdd-part0
+            size: -1
+            preserve: false
+            device: disk-hdd
+        -   type: partition
+            preserve: false
+            id: disk-ssd-2-part0
+            size: -1
+            device: disk-ssd-2
         # volume group
         -   type: lvm_volgroup
             id: vg1
